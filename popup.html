@@ -1,33 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Google Login</title>
-    <script src="https://apis.google.com/js/platform.js" async defer></script>
-    <meta name="google-signin-client_id" content="YOUR_CLIENT_ID.apps.googleusercontent.com">
+    <title>VTOP Calendar Sync</title>
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #event-form {
+            display: none;
+            margin-top: 10px;
+        }
+        input, textarea {
+            width: 100%;
+            margin: 5px 0;
+            padding: 5px;
+        }
+        #status {
+            margin-top: 10px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
-    <div class="g-signin2" data-onsuccess="onSignIn"></div>
-    <script src="script.js"></script>
-    <script>
-        function onSignIn(googleUser) {
-            var profile = googleUser.getBasicProfile();
-            console.log('ID: ' + profile.getId());
-            console.log('Name: ' + profile.getName());
-            console.log('Image URL: ' + profile.getImageUrl());
-            console.log('Email: ' + profile.getEmail());
+    <button id="authorize">Sign in with Google</button>
+    <button id="signout" style="display: none;">Sign Out</button>
+    
+    <div id="event-form">
+        <h3>Add Calendar Event</h3>
+        <input type="text" id="event-title" placeholder="Event Title">
+        <input type="date" id="event-date">
+        <input type="time" id="event-time">
+        <textarea id="event-description" placeholder="Event Description"></textarea>
+        <button id="add-event">Add Event</button>
+    </div>
 
-            // Pass eventDetail to calender.js
-            var eventDetail = {
-                id: profile.getId(),
-                name: profile.getName(),
-                email: profile.getEmail()
-            };
-            handleEventDetail(eventDetail);
-        }
-    </script>
+    <div id="status"></div>
+
+    <script src="popup.js"></script>
 </body>
 </html>
