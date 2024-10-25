@@ -1,7 +1,6 @@
 let accessToken = null;
 const CALENDAR_API_ENDPOINT = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
-// Initialize the UI and check auth status when the popup loads
 document.addEventListener('DOMContentLoaded', initializePopup);
 
 function initializePopup() {
