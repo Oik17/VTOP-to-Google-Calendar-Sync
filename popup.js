@@ -219,28 +219,44 @@ function updateStatus(message, type = 'info') {
     
     statusElement.style.color = colors[type] || colors.info;
 }
-
 document.getElementById('get-due-dates').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // First, inject a script to click the button on the original page
     chrome.scripting.executeScript(
         {
             target: { tabId: tab.id },
-            func: extractDueDates,
+            func: simulateButtonClick,
+            args: ['VL2024250101616']  
         },
-        (results) => {
-            if (chrome.runtime.lastError) {
-                document.getElementById('status').innerText = `Error: ${chrome.runtime.lastError.message}`;
-                return;
-            }
-            const dueDates = results[0].result;
-            if (dueDates.length) {
-                document.getElementById('status').innerText = "Due Dates:\n" + dueDates.join('\n');
-            } else {
-                document.getElementById('status').innerText = "No due dates found.";
-            }
+        async () => {
+            setTimeout(() => {
+                chrome.scripting.executeScript(
+                    {
+                        target: { tabId: tab.id },
+                        func: extractDueDates
+                    },
+                    (results) => {
+                        if (chrome.runtime.lastError) {
+                            document.getElementById('status').innerText = `Error: ${chrome.runtime.lastError.message}`;
+                            return;
+                        }
+                        const dueDates = results[0].result;
+                        if (dueDates.length) {
+                            document.getElementById('status').innerText = "Due Dates:\n" + dueDates.join('\n');
+                        } else {
+                            document.getElementById('status').innerText = "No due dates found.";
+                        }
+                    }
+                );
+            }, 6000);  
         }
     );
 });
+
+function simulateButtonClick(itemId) {
+    myFunction(itemId);
+}
 
 function extractDueDates() {
     const dueDates = [];
