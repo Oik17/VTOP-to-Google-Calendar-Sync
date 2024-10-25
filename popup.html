@@ -5,10 +5,29 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>Dad Jokes</title>
+    <title>Google Login</title>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="YOUR_CLIENT_ID.apps.googleusercontent.com">
 </head>
 <body>
-    <p id="jokeElement">Loading...</p>
+    <div class="g-signin2" data-onsuccess="onSignIn"></div>
     <script src="script.js"></script>
+    <script>
+        function onSignIn(googleUser) {
+            var profile = googleUser.getBasicProfile();
+            console.log('ID: ' + profile.getId());
+            console.log('Name: ' + profile.getName());
+            console.log('Image URL: ' + profile.getImageUrl());
+            console.log('Email: ' + profile.getEmail());
+
+            // Pass eventDetail to calender.js
+            var eventDetail = {
+                id: profile.getId(),
+                name: profile.getName(),
+                email: profile.getEmail()
+            };
+            handleEventDetail(eventDetail);
+        }
+    </script>
 </body>
 </html>

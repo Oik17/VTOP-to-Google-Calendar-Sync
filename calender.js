@@ -1,5 +1,3 @@
-const CLIENT_ID = 'YOUR_CLIENT_ID';
-const API_KEY = 'YOUR_API_KEY';
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 const SCOPES = "https://www.googleapis.com/auth/calendar.events";
 
@@ -12,7 +10,7 @@ function handleClientLoad() {
 
 function initClient() {
     gapi.client.init({
-        clientSecret: API_KEY,
+        apiKey: API_KEY,
         clientId: CLIENT_ID,
         discoveryDocs: DISCOVERY_DOCS,
         scope: SCOPES
@@ -30,7 +28,6 @@ function updateSigninStatus(isSignedIn) {
     if (isSignedIn) {
         authorizeButton.style.display = 'none';
         signoutButton.style.display = 'block';
-        addEvent();
     } else {
         authorizeButton.style.display = 'block';
         signoutButton.style.display = 'none';
@@ -45,36 +42,21 @@ function handleSignoutClick(event) {
     gapi.auth2.getAuthInstance().signOut();
 }
 
-function addEvent() {
-    var event = {
-        'summary': 'Google I/O 2023',
-        'location': '800 Howard St., San Francisco, CA 94103',
-        'description': 'A chance to hear more about Google\'s developer products.',
+function createEvent(eventDetails) {
+    const event = {
+        'summary': eventDetails.summary,
+        'description': eventDetails.description,
         'start': {
-            'dateTime': '2023-05-28T09:00:00-07:00',
-            'timeZone': 'America/Los_Angeles'
+            'dateTime': eventDetails.startTime,
+            'timeZone': eventDetails.timeZone
         },
         'end': {
-            'dateTime': '2023-05-28T17:00:00-07:00',
-            'timeZone': 'America/Los_Angeles'
-        },
-        'recurrence': [
-            'RRULE:FREQ=DAILY;COUNT=2'
-        ],
-        'attendees': [
-            {'email': 'lpage@example.com'},
-            {'email': 'sbrin@example.com'}
-        ],
-        'reminders': {
-            'useDefault': false,
-            'overrides': [
-                {'method': 'email', 'minutes': 24 * 60},
-                {'method': 'popup', 'minutes': 10}
-            ]
+            'dateTime': eventDetails.endTime,
+            'timeZone': eventDetails.timeZone
         }
     };
 
-    var request = gapi.client.calendar.events.insert({
+    const request = gapi.client.calendar.events.insert({
         'calendarId': 'primary',
         'resource': event
     });
@@ -84,4 +66,11 @@ function addEvent() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', handleClientLoad);
+// Example usage:
+// createEvent({
+//     summary: 'Sample Event',
+//     description: 'This is a sample event',
+//     startTime: '2023-10-01T10:00:00-07:00',
+//     endTime: '2023-10-01T11:00:00-07:00',
+//     timeZone: 'America/Los_Angeles'
+// })
