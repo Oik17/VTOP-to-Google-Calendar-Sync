@@ -219,3 +219,37 @@ function updateStatus(message, type = 'info') {
     
     statusElement.style.color = colors[type] || colors.info;
 }
+
+document.getElementById('get-due-dates').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    chrome.scripting.executeScript(
+        {
+            target: { tabId: tab.id },
+            func: extractDueDates,
+        },
+        (results) => {
+            if (chrome.runtime.lastError) {
+                document.getElementById('status').innerText = `Error: ${chrome.runtime.lastError.message}`;
+                return;
+            }
+            const dueDates = results[0].result;
+            if (dueDates.length) {
+                document.getElementById('status').innerText = "Due Dates:\n" + dueDates.join('\n');
+            } else {
+                document.getElementById('status').innerText = "No due dates found.";
+            }
+        }
+    );
+});
+
+function extractDueDates() {
+    const dueDates = [];
+    const rows = document.querySelectorAll("table.customTable tr.tableContent");
+    rows.forEach((row) => {
+        const dueDateElement = row.querySelector("td:nth-child(5) span");
+        if (dueDateElement) {
+            dueDates.push(dueDateElement.textContent.trim());
+        }
+    });
+    return dueDates;
+}
