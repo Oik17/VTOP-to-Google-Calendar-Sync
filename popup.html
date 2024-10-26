@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>VTOP Calendar Sync</title>
+    <title>Due Date Calendar Integration</title>
     <style>
         body {
             width: 300px;
@@ -9,9 +9,8 @@
             font-family: Arial, sans-serif;
         }
         button {
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0;
+            margin: 5px;
+            padding: 8px 16px;
             background-color: #4285f4;
             color: white;
             border: none;
@@ -19,41 +18,31 @@
             cursor: pointer;
         }
         button:disabled {
-            background-color: #ccc;
+            background-color: #cccccc;
             cursor: not-allowed;
         }
-        #event-form {
-            display: none;
-            margin-top: 10px;
-        }
-        input, textarea {
-            width: 100%;
-            margin: 5px 0;
-            padding: 5px;
+        button:hover:not(:disabled) {
+            background-color: #357abd;
         }
         #status {
             margin-top: 10px;
-            color: #666;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        #signout {
+            display: none;
+            background-color: #dc3545;
+        }
+        #signout:hover {
+            background-color: #c82333;
         }
     </style>
 </head>
 <body>
-    <button id="authorize">Sign in with Google</button>
-    <button id="signout" style="display: none;">Sign Out</button>
-    
-    <div id="event-form">
-        <h3>Add Calendar Event</h3>
-        <input type="text" id="event-title" placeholder="Event Title">
-        <input type="date" id="event-date">
-        <input type="time" id="event-time">
-        <textarea id="event-description" placeholder="Event Description"></textarea>
-        <button id="add-event">Add Event</button>
-    </div>
-
+    <button id="authorize">Sign In</button>
+    <button id="signout">Sign Out</button>
     <button id="get-due-dates">Get Due Dates</button>
-
     <div id="status"></div>
-
     <script src="popup.js"></script>
 </body>
 </html>

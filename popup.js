@@ -11,21 +11,7 @@ function initializePopup() {
 function setupEventListeners() {
     document.getElementById('authorize').addEventListener('click', handleAuthClick);
     document.getElementById('signout').addEventListener('click', handleSignoutClick);
-    document.getElementById('add-event').addEventListener('click', addCalendarEvent);
-    
-    // Add input validation
-    ['event-title', 'event-date', 'event-time'].forEach(id => {
-        document.getElementById(id).addEventListener('input', validateForm);
-    });
-}
-
-function validateForm() {
-    const title = document.getElementById('event-title').value.trim();
-    const date = document.getElementById('event-date').value;
-    const time = document.getElementById('event-time').value;
-    
-    const addEventButton = document.getElementById('add-event');
-    addEventButton.disabled = !(title && date && time);
+    document.getElementById('get-due-dates').addEventListener('click', handleGetDueDates);
 }
 
 function checkInitialAuthStatus() {
@@ -49,18 +35,18 @@ function handleAuthResponse(token) {
 function updateUIState(state) {
     const authorize = document.getElementById('authorize');
     const signout = document.getElementById('signout');
-    const eventForm = document.getElementById('event-form');
+    const getDueDatesBtn = document.getElementById('get-due-dates');
     
     switch (state) {
         case 'authorized':
             authorize.style.display = 'none';
             signout.style.display = 'block';
-            eventForm.style.display = 'block';
+            getDueDatesBtn.disabled = false;
             break;
         case 'unauthorized':
             authorize.style.display = 'block';
             signout.style.display = 'none';
-            eventForm.style.display = 'none';
+            getDueDatesBtn.disabled = true;
             break;
     }
 }
@@ -101,51 +87,93 @@ async function handleSignoutClick() {
     }
 }
 
-async function addCalendarEvent() {
-    try {
-        const eventData = getEventData();
-        if (!eventData) return;
-
-        const response = await fetchWithRetry(() => createCalendarEvent(eventData));
-        
-        if (response.ok) {
-            updateStatus(`Event added successfully with due dates: ${eventData.dueDates.join('\n')}`, 'success');
-            clearForm();
+async function handleGetDueDates() {
+    updateStatus('Extracting due dates...', 'info');
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    chrome.scripting.executeScript(
+        {
+            target: { tabId: tab.id },
+            func: simulateButtonClick,
+            args: ['VL2024250101616']  
+        },
+        async () => {
+            setTimeout(() => {
+                chrome.scripting.executeScript(
+                    {
+                        target: { tabId: tab.id },
+                        func: extractDueDates
+                    },
+                    async (results) => {
+                        if (chrome.runtime.lastError) {
+                            updateStatus(`Error: ${chrome.runtime.lastError.message}`, 'error');
+                            return;
+                        }
+                        const dueDates = results[0].result;
+                        if (dueDates.length) {
+                            updateStatus("Due dates found! Adding to calendar...", 'info');
+                            await addDueDatesToCalendar(dueDates);
+                        } else {
+                            updateStatus("No due dates found.", 'error');
+                        }
+                    }
+                );
+            }, 6000);
         }
+    );
+}
+
+async function addDueDatesToCalendar(dueDates) {
+    if (!accessToken) {
+        updateStatus('Please sign in first', 'error');
+        return;
+    }
+
+    try {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        let successCount = 0;
+
+        for (const dueDate of dueDates) {
+            // Parse the due date string to create a Date object
+            const date = new Date(dueDate);
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', dueDate);
+                continue;
+            }
+
+            // Set the time to 9:00 AM on the due date
+            date.setHours(9, 0, 0, 0);
+
+            const eventData = {
+                'summary': 'Assignment Due',
+                'description': `Assignment due date from course schedule`,
+                'start': {
+                    'dateTime': date.toISOString(),
+                    'timeZone': timeZone
+                },
+                'end': {
+                    'dateTime': new Date(date.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
+                    'timeZone': timeZone
+                },
+                'reminders': {
+                    'useDefault': false,
+                    'overrides': [
+                        {'method': 'popup', 'minutes': 24 * 60}, // 1 day before
+                        {'method': 'popup', 'minutes': 60} // 1 hour before
+                    ]
+                }
+            };
+
+            const response = await fetchWithRetry(() => createCalendarEvent(eventData));
+            if (response.ok) {
+                successCount++;
+            }
+        }
+
+        updateStatus(`Successfully added ${successCount} out of ${dueDates.length} due dates to calendar`, 'success');
     } catch (error) {
         handleEventCreationError(error);
     }
-}
-
-function getEventData() {
-    // const title = document.getElementById('event-title').value.trim();
-    const date = document.getElementById('event-date').value;
-    const time = document.getElementById('event-time').value;
-    // const description = document.getElementById('event-description').value.trim();
-    const dueDates= extractDueDates();
-    console.log(dueDates);
-
-    // if (!title || !date || !time) {
-    //     updateStatus('Please fill in all required fields', 'error');
-    //     return null;
-    // }
-
-    const dateTime = new Date();
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    return {
-        'dueDates': dueDates,
-        'summary': "DA",
-        'description': "description",
-        'start': {
-            'dateTime': dateTime.toISOString(),
-            'timeZone': timeZone
-        },
-        'end': {
-            'dateTime': new Date(dateTime.getTime() + 60 * 60 * 1000).toISOString(),
-            'timeZone': timeZone
-        }
-    };
 }
 
 async function createCalendarEvent(eventData) {
@@ -159,18 +187,6 @@ async function createCalendarEvent(eventData) {
     });
 }
 
-function updateStatus(message, type = 'info') {
-    const statusElement = document.getElementById('status');
-    statusElement.textContent = message;
-    
-    const colors = {
-        success: '#28a745',
-        error: '#dc3545',
-        info: '#17a2b8'
-    };
-    
-    statusElement.style.color = colors[type] || colors.info;
-}
 async function fetchWithRetry(fetchFn, retries = 1) {
     try {
         const response = await fetchFn();
@@ -214,60 +230,6 @@ function handleEventCreationError(error) {
     updateStatus(errorMessage, 'error');
 }
 
-function clearForm() {
-    ['event-title', 'event-date', 'event-time', 'event-description'].forEach(id => {
-        document.getElementById(id).value = '';
-    });
-    validateForm();
-}
-
-function updateStatus(message, type = 'info') {
-    const statusElement = document.getElementById('status');
-    statusElement.textContent = message;
-    
-    // Update status color based on type
-    const colors = {
-        success: '#28a745',
-        error: '#dc3545',
-        info: '#17a2b8'
-    };
-    
-    statusElement.style.color = colors[type] || colors.info;
-}
-document.getElementById('get-due-dates').addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    chrome.scripting.executeScript(
-        {
-            target: { tabId: tab.id },
-            func: simulateButtonClick,
-            args: ['VL2024250101616']  
-        },
-        async () => {
-            setTimeout(() => {
-                chrome.scripting.executeScript(
-                    {
-                        target: { tabId: tab.id },
-                        func: extractDueDates
-                    },
-                    (results) => {
-                        if (chrome.runtime.lastError) {
-                            document.getElementById('status').innerText = `Error: ${chrome.runtime.lastError.message}`;
-                            return;
-                        }
-                        const dueDates = results[0].result;
-                        if (dueDates.length) {
-                            document.getElementById('status').innerText = "Due Dates:\n" + dueDates.join('\n');
-                        } else {
-                            document.getElementById('status').innerText = "No due dates found.";
-                        }
-                    }
-                );
-            }, 6000);  
-        }
-    );
-});
-
 function simulateButtonClick(itemId) {
     myFunction(itemId);
 }
@@ -282,4 +244,17 @@ function extractDueDates() {
         }
     });
     return dueDates;
+}
+
+function updateStatus(message, type = 'info') {
+    const statusElement = document.getElementById('status');
+    statusElement.textContent = message;
+    
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        info: '#17a2b8'
+    };
+    
+    statusElement.style.color = colors[type] || colors.info;
 }
