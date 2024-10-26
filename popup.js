@@ -126,9 +126,16 @@ async function handleGetDueDates() {
 function extractAssignmentInfo() {
     const assignments = [];
     const rows = document.querySelectorAll("table.customTable tr.tableContent");
-    rows.forEach((row) => {
+    console.log('Found rows:', rows.length); // Debug log
+    
+    rows.forEach((row, index) => {
         const titleElement = row.querySelector("td:nth-child(2)");
         const dueDateElement = row.querySelector("td:nth-child(5) span");
+        
+        console.log(`Row ${index + 1}:`); // Debug log
+        console.log('Title element:', titleElement?.textContent); // Debug log
+        console.log('Due date element:', dueDateElement?.textContent); // Debug log
+        
         if (titleElement && dueDateElement) {
             assignments.push({
                 title: titleElement.textContent.trim(),
@@ -136,6 +143,8 @@ function extractAssignmentInfo() {
             });
         }
     });
+    
+    console.log('Extracted assignments:', assignments); // Debug log
     return assignments;
 }
 
@@ -148,15 +157,21 @@ async function addAssignmentsToTasks(assignments) {
     try {
         let successCount = 0;
 
+        console.log('Processing assignments:', assignments); // Debug log
+
         for (const assignment of assignments) {
+            console.log('Processing assignment:', assignment); // Debug log
+            
             const dueDate = new Date(assignment.dueDate);
+            console.log('Parsed due date:', dueDate); // Debug log
+            
             if (isNaN(dueDate.getTime())) {
                 console.error('Invalid date:', assignment.dueDate);
                 continue;
             }
 
-            // Format date as RFC 3339 timestamp for Google Tasks API
             const dueDateString = dueDate.toISOString();
+            console.log('Due date string:', dueDateString); // Debug log
 
             const taskData = {
                 'title': assignment.title,
@@ -164,20 +179,29 @@ async function addAssignmentsToTasks(assignments) {
                 'due': dueDateString
             };
 
+            console.log('Sending task data:', taskData); // Debug log
+
             const response = await fetchWithRetry(() => createTask(taskData));
+            console.log('API Response:', response); // Debug log
+            
             if (response.ok) {
                 successCount++;
+            } else {
+                const responseText = await response.text();
+                console.error('Error response:', responseText);
             }
         }
 
         updateStatus(`Successfully added ${successCount} out of ${assignments.length} assignments to tasks`, 'success');
     } catch (error) {
+        console.error('Full error:', error); // Debug log
         handleTaskCreationError(error);
     }
 }
 
 async function createTask(taskData) {
-    return fetch(TASKS_API_ENDPOINT, {
+    console.log('Creating task with data:', taskData); // Debug log
+    const response = await fetch(TASKS_API_ENDPOINT, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -185,8 +209,10 @@ async function createTask(taskData) {
         },
         body: JSON.stringify(taskData)
     });
+    
+    console.log('Task creation response:', response.status); // Debug log
+    return response;
 }
-
 async function fetchWithRetry(fetchFn, retries = 1) {
     try {
         const response = await fetchFn();
