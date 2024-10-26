@@ -109,7 +109,7 @@ async function addCalendarEvent() {
         const response = await fetchWithRetry(() => createCalendarEvent(eventData));
         
         if (response.ok) {
-            updateStatus('Event added successfully', 'success');
+            updateStatus(`Event added successfully with due dates: ${eventData.dueDates.join('\n')}`, 'success');
             clearForm();
         }
     } catch (error) {
@@ -118,22 +118,25 @@ async function addCalendarEvent() {
 }
 
 function getEventData() {
-    const title = document.getElementById('event-title').value.trim();
+    // const title = document.getElementById('event-title').value.trim();
     const date = document.getElementById('event-date').value;
     const time = document.getElementById('event-time').value;
-    const description = document.getElementById('event-description').value.trim();
+    // const description = document.getElementById('event-description').value.trim();
+    const dueDates= extractDueDates();
+    console.log(dueDates);
 
-    if (!title || !date || !time) {
-        updateStatus('Please fill in all required fields', 'error');
-        return null;
-    }
+    // if (!title || !date || !time) {
+    //     updateStatus('Please fill in all required fields', 'error');
+    //     return null;
+    // }
 
-    const dateTime = new Date(date + 'T' + time);
+    const dateTime = new Date();
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     return {
-        'summary': title,
-        'description': description,
+        'dueDates': dueDates,
+        'summary': "DA",
+        'description': "description",
         'start': {
             'dateTime': dateTime.toISOString(),
             'timeZone': timeZone
@@ -156,6 +159,18 @@ async function createCalendarEvent(eventData) {
     });
 }
 
+function updateStatus(message, type = 'info') {
+    const statusElement = document.getElementById('status');
+    statusElement.textContent = message;
+    
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        info: '#17a2b8'
+    };
+    
+    statusElement.style.color = colors[type] || colors.info;
+}
 async function fetchWithRetry(fetchFn, retries = 1) {
     try {
         const response = await fetchFn();
@@ -222,7 +237,6 @@ function updateStatus(message, type = 'info') {
 document.getElementById('get-due-dates').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
-    // First, inject a script to click the button on the original page
     chrome.scripting.executeScript(
         {
             target: { tabId: tab.id },
