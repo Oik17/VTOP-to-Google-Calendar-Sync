@@ -126,15 +126,15 @@ async function handleGetDueDates() {
 function extractAssignmentInfo() {
     const assignments = [];
     const rows = document.querySelectorAll("table.customTable tr.tableContent");
-    console.log('Found rows:', rows.length); // Debug log
+    console.log('Found rows:', rows.length); 
     
     rows.forEach((row, index) => {
         const titleElement = row.querySelector("td:nth-child(2)");
         const dueDateElement = row.querySelector("td:nth-child(5) span");
         
-        console.log(`Row ${index + 1}:`); // Debug log
-        console.log('Title element:', titleElement?.textContent); // Debug log
-        console.log('Due date element:', dueDateElement?.textContent); // Debug log
+        console.log(`Row ${index + 1}:`); 
+        console.log('Title element:', titleElement?.textContent); 
+        console.log('Due date element:', dueDateElement?.textContent); 
         
         if (titleElement && dueDateElement) {
             assignments.push({
@@ -144,7 +144,7 @@ function extractAssignmentInfo() {
         }
     });
     
-    console.log('Extracted assignments:', assignments); // Debug log
+    console.log('Extracted assignments:', assignments); 
     return assignments;
 }
 
@@ -157,13 +157,13 @@ async function addAssignmentsToTasks(assignments) {
     try {
         let successCount = 0;
 
-        console.log('Processing assignments:', assignments); // Debug log
+        console.log('Processing assignments:', assignments); 
 
         for (const assignment of assignments) {
-            console.log('Processing assignment:', assignment); // Debug log
+            console.log('Processing assignment:', assignment); 
             
             const dueDate = new Date(assignment.dueDate);
-            console.log('Parsed due date:', dueDate); // Debug log
+            console.log('Parsed due date:', dueDate); 
             
             if (isNaN(dueDate.getTime())) {
                 console.error('Invalid date:', assignment.dueDate);
@@ -171,7 +171,7 @@ async function addAssignmentsToTasks(assignments) {
             }
 
             const dueDateString = dueDate.toISOString();
-            console.log('Due date string:', dueDateString); // Debug log
+            console.log('Due date string:', dueDateString); 
 
             const taskData = {
                 'title': assignment.title,
@@ -179,10 +179,10 @@ async function addAssignmentsToTasks(assignments) {
                 'due': dueDateString
             };
 
-            console.log('Sending task data:', taskData); // Debug log
+            console.log('Sending task data:', taskData); 
 
             const response = await fetchWithRetry(() => createTask(taskData));
-            console.log('API Response:', response); // Debug log
+            console.log('API Response:', response); 
             
             if (response.ok) {
                 successCount++;
@@ -194,13 +194,13 @@ async function addAssignmentsToTasks(assignments) {
 
         updateStatus(`Successfully added ${successCount} out of ${assignments.length} assignments to tasks`, 'success');
     } catch (error) {
-        console.error('Full error:', error); // Debug log
+        console.error('Full error:', error); 
         handleTaskCreationError(error);
     }
 }
 
 async function createTask(taskData) {
-    console.log('Creating task with data:', taskData); // Debug log
+    console.log('Creating task with data:', taskData); 
     const response = await fetch(TASKS_API_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -210,7 +210,7 @@ async function createTask(taskData) {
         body: JSON.stringify(taskData)
     });
     
-    console.log('Task creation response:', response.status); // Debug log
+    console.log('Task creation response:', response.status); 
     return response;
 }
 async function fetchWithRetry(fetchFn, retries = 1) {
