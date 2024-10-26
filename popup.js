@@ -1,5 +1,5 @@
 let accessToken = null;
-const CALENDAR_API_ENDPOINT = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const TASKS_API_ENDPOINT = 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks';
 
 document.addEventListener('DOMContentLoaded', initializePopup);
 
@@ -102,19 +102,19 @@ async function handleGetDueDates() {
                 chrome.scripting.executeScript(
                     {
                         target: { tabId: tab.id },
-                        func: extractDueDates
+                        func: extractAssignmentInfo
                     },
                     async (results) => {
                         if (chrome.runtime.lastError) {
                             updateStatus(`Error: ${chrome.runtime.lastError.message}`, 'error');
                             return;
                         }
-                        const dueDates = results[0].result;
-                        if (dueDates.length) {
-                            updateStatus("Due dates found! Adding to calendar...", 'info');
-                            await addDueDatesToCalendar(dueDates);
+                        const assignments = results[0].result;
+                        if (assignments.length) {
+                            updateStatus("Assignments found! Adding to tasks...", 'info');
+                            await addAssignmentsToTasks(assignments);
                         } else {
-                            updateStatus("No due dates found.", 'error');
+                            updateStatus("No assignments found.", 'error');
                         }
                     }
                 );
@@ -123,67 +123,67 @@ async function handleGetDueDates() {
     );
 }
 
-async function addDueDatesToCalendar(dueDates) {
+function extractAssignmentInfo() {
+    const assignments = [];
+    const rows = document.querySelectorAll("table.customTable tr.tableContent");
+    rows.forEach((row) => {
+        const titleElement = row.querySelector("td:nth-child(2)");
+        const dueDateElement = row.querySelector("td:nth-child(5) span");
+        if (titleElement && dueDateElement) {
+            assignments.push({
+                title: titleElement.textContent.trim(),
+                dueDate: dueDateElement.textContent.trim()
+            });
+        }
+    });
+    return assignments;
+}
+
+async function addAssignmentsToTasks(assignments) {
     if (!accessToken) {
         updateStatus('Please sign in first', 'error');
         return;
     }
 
     try {
-        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         let successCount = 0;
 
-        for (const dueDate of dueDates) {
-            // Parse the due date string to create a Date object
-            const date = new Date(dueDate);
-            if (isNaN(date.getTime())) {
-                console.error('Invalid date:', dueDate);
+        for (const assignment of assignments) {
+            const dueDate = new Date(assignment.dueDate);
+            if (isNaN(dueDate.getTime())) {
+                console.error('Invalid date:', assignment.dueDate);
                 continue;
             }
 
-            // Set the time to 9:00 AM on the due date
-            date.setHours(9, 0, 0, 0);
+            // Format date as RFC 3339 timestamp for Google Tasks API
+            const dueDateString = dueDate.toISOString();
 
-            const eventData = {
-                'summary': 'Assignment Due',
-                'description': `Assignment due date from course schedule`,
-                'start': {
-                    'dateTime': date.toISOString(),
-                    'timeZone': timeZone
-                },
-                'end': {
-                    'dateTime': new Date(date.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
-                    'timeZone': timeZone
-                },
-                'reminders': {
-                    'useDefault': false,
-                    'overrides': [
-                        {'method': 'popup', 'minutes': 24 * 60}, // 1 day before
-                        {'method': 'popup', 'minutes': 60} // 1 hour before
-                    ]
-                }
+            const taskData = {
+                'title': assignment.title,
+                'notes': 'Assignment from course schedule',
+                'due': dueDateString
             };
 
-            const response = await fetchWithRetry(() => createCalendarEvent(eventData));
+            const response = await fetchWithRetry(() => createTask(taskData));
             if (response.ok) {
                 successCount++;
             }
         }
 
-        updateStatus(`Successfully added ${successCount} out of ${dueDates.length} due dates to calendar`, 'success');
+        updateStatus(`Successfully added ${successCount} out of ${assignments.length} assignments to tasks`, 'success');
     } catch (error) {
-        handleEventCreationError(error);
+        handleTaskCreationError(error);
     }
 }
 
-async function createCalendarEvent(eventData) {
-    return fetch(CALENDAR_API_ENDPOINT, {
+async function createTask(taskData) {
+    return fetch(TASKS_API_ENDPOINT, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(eventData)
+        body: JSON.stringify(taskData)
     });
 }
 
@@ -215,9 +215,9 @@ async function refreshToken() {
     });
 }
 
-function handleEventCreationError(error) {
-    console.error('Event creation error:', error);
-    let errorMessage = 'Error adding event. ';
+function handleTaskCreationError(error) {
+    console.error('Task creation error:', error);
+    let errorMessage = 'Error adding task. ';
     
     if (error.message.includes('401')) {
         errorMessage += 'Please try signing in again.';
@@ -232,18 +232,6 @@ function handleEventCreationError(error) {
 
 function simulateButtonClick(itemId) {
     myFunction(itemId);
-}
-
-function extractDueDates() {
-    const dueDates = [];
-    const rows = document.querySelectorAll("table.customTable tr.tableContent");
-    rows.forEach((row) => {
-        const dueDateElement = row.querySelector("td:nth-child(5) span");
-        if (dueDateElement) {
-            dueDates.push(dueDateElement.textContent.trim());
-        }
-    });
-    return dueDates;
 }
 
 function updateStatus(message, type = 'info') {
