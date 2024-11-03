@@ -72,7 +72,6 @@ async function handleSignoutClick() {
             { method: 'GET' }
         );
 
-        // Then remove it from Chrome's cache
         await new Promise((resolve) => {
             chrome.identity.removeCachedAuthToken({ token: accessToken }, resolve);
         });
@@ -85,6 +84,34 @@ async function handleSignoutClick() {
         updateStatus('Error signing out. Please try again.', 'error');
     }
 }
+
+async function fetchWithRetry(fetchFn, retries = 1) {
+    try {
+        const response = await fetchFn();
+        
+        if (response.status === 401 && retries > 0) {
+            await refreshToken();
+            return fetchWithRetry(fetchFn, retries - 1);
+        }
+        
+        return response;
+    } catch (error) {
+        if (retries > 0) {
+            return fetchWithRetry(fetchFn, retries - 1);
+        }
+        throw error;
+    }
+}
+
+async function refreshToken() {
+    await new Promise((resolve) => {
+        chrome.identity.removeCachedAuthToken({ token: accessToken }, async () => {
+            await handleAuthClick();
+            resolve();
+        });
+    });
+}
+
 
 async function handleGetDueDates() {
     updateStatus('Extracting due dates...', 'info');
@@ -110,6 +137,7 @@ async function handleGetDueDates() {
                         }
                         const assignments = results[0].result;
                         if (assignments.length) {
+                            console.log(assignments)
                             updateStatus("Assignments found! Adding to tasks...", 'info');
                             await addAssignmentsToTasks(assignments);
                         } else {
@@ -155,14 +183,28 @@ async function addAssignmentsToTasks(assignments) {
 
     try {
         let successCount = 0;
-
-        console.log('Processing assignments:', assignments); 
+        console.log('Processing assignments:', assignments);
 
         for (const assignment of assignments) {
-            console.log('Processing assignment:', assignment); 
+            console.log('Processing assignment:', assignment);
             
-            const dueDate = new Date(assignment.dueDate);
-            console.log('Parsed due date:', dueDate); 
+            const [day, month, year] = assignment.dueDate.split('-');
+            const monthMap = {
+                'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+            };
+            
+            const dueDate = new Date(
+                parseInt(year),
+                monthMap[month],
+                parseInt(day),
+                23,  
+                59,
+                59
+            );
+            
+            console.log('Original date string:', assignment.dueDate);
+            console.log('Parsed due date:', dueDate);
             
             if (isNaN(dueDate.getTime())) {
                 console.error('Invalid date:', assignment.dueDate);
@@ -170,7 +212,7 @@ async function addAssignmentsToTasks(assignments) {
             }
 
             const dueDateString = dueDate.toISOString();
-            console.log('Due date string:', dueDateString); 
+            console.log('Due date string:', dueDateString);
 
             const taskData = {
                 'title': assignment.title,
@@ -178,10 +220,10 @@ async function addAssignmentsToTasks(assignments) {
                 'due': dueDateString
             };
 
-            console.log('Sending task data:', taskData); 
+            console.log('Sending task data:', taskData);
 
             const response = await fetchWithRetry(() => createTask(taskData));
-            console.log('API Response:', response); 
+            console.log('API Response:', response);
             
             if (response.ok) {
                 successCount++;
@@ -193,11 +235,16 @@ async function addAssignmentsToTasks(assignments) {
 
         updateStatus(`Successfully added ${successCount} out of ${assignments.length} assignments to tasks`, 'success');
     } catch (error) {
-        console.error('Full error:', error); 
+        console.error('Full error:', error);
         handleTaskCreationError(error);
     }
 }
 
+function formatLocalDateToISO(date) {
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString();
+}
 async function createTask(taskData) {
     console.log('Creating task with data:', taskData); 
     const response = await fetch(TASKS_API_ENDPOINT, {
@@ -212,33 +259,7 @@ async function createTask(taskData) {
     console.log('Task creation response:', response.status); 
     return response;
 }
-async function fetchWithRetry(fetchFn, retries = 1) {
-    try {
-        const response = await fetchFn();
-        
-        if (response.status === 401 && retries > 0) {
-            // Token expired, refresh and retry
-            await refreshToken();
-            return fetchWithRetry(fetchFn, retries - 1);
-        }
-        
-        return response;
-    } catch (error) {
-        if (retries > 0) {
-            return fetchWithRetry(fetchFn, retries - 1);
-        }
-        throw error;
-    }
-}
 
-async function refreshToken() {
-    await new Promise((resolve) => {
-        chrome.identity.removeCachedAuthToken({ token: accessToken }, async () => {
-            await handleAuthClick();
-            resolve();
-        });
-    });
-}
 
 function handleTaskCreationError(error) {
     console.error('Task creation error:', error);
@@ -255,8 +276,14 @@ function handleTaskCreationError(error) {
     updateStatus(errorMessage, 'error');
 }
 
-function simulateButtonClick(itemId) {
-    myFunction(itemId);
+function simulateButtonClick(buttonId) {
+    console.log('simulateButtonClick running in content script');
+    const button = document.getElementById(buttonId);
+    if (button) {
+        button.click();
+        return true;
+    }
+    return false;
 }
 
 function updateStatus(message, type = 'info') {
