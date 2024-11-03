@@ -1,0 +1,31 @@
+{
+    "name": "VTOP to Google Calendar Sync",
+    "version": "0.0.1",
+    "manifest_version": 3,
+    "description": "Sync VTOP events with Google Calendar",
+    "action": {
+        "default_title": "Add to Google Calendar",
+        "default_popup": "popup.html",
+        "default_icon": "logo1.png"
+    },
+    "permissions": [
+        "identity",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://www.googleapis.com/",
+        "https://accounts.google.com/"
+    ],
+    "icons": {
+        "128": "logo1.png"
+    },
+    "oauth2": {
+        "client_id": "client-id",
+        "scopes": [
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/tasks",
+            "https://www.googleapis.com/auth/calendar"
+        ]
+    }
+}
