@@ -67,7 +67,6 @@ async function handleSignoutClick() {
     if (!accessToken) return;
 
     try {
-        // First, revoke the token on Google's servers
         const revokeResponse = await fetch(
             `https://accounts.google.com/o/oauth2/revoke?token=${accessToken}`,
             { method: 'GET' }
