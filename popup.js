@@ -112,7 +112,6 @@ async function refreshToken() {
     });
 }
 
-
 async function handleGetDueDates() {
     updateStatus('Extracting due dates...', 'info');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
